@@ -5,4 +5,4 @@ Electrum_CESC.egg-info/
 build/
 dist/
 mypy/
-
+locale/
