@@ -476,14 +476,17 @@ class ElectrumWindow(QMainWindow):
     def create_history_menu(self, position):
         self.history_list.selectedIndexes()
         item = self.history_list.currentItem()
-        be = self.config.get('block_explorer', 'explorer.litecoin.net')
-        if be == 'explorer.litecoin.net':
-            block_explorer = 'http://explorer.litecoin.net/tx/'
-        elif be == 'block-explorer.com':
-            block_explorer = 'http://block-explorer.com/tx/'
-        elif be == 'Blockr.io':
-            block_explorer = 'https://ltc.blockr.io/tx/info/'
-        if not item: return
+#        be = self.config.get('block_explorer', 'explorer.litecoin.net')
+#        if be == 'explorer.litecoin.net':
+#            block_explorer = 'http://explorer.litecoin.net/tx/'
+#        elif be == 'block-explorer.com':
+#            block_explorer = 'http://block-explorer.com/tx/'
+#        elif be == 'Blockr.io':
+#            block_explorer = 'https://ltc.blockr.io/tx/info/'
+#        if not item: return
+
+        block_explorer = 'http://explorador.cryptoescudo.net/tx/'
+
         tx_hash = str(item.data(0, Qt.UserRole).toString())
         if not tx_hash: return
         menu = QMenu()
