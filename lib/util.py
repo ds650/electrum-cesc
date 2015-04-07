@@ -43,7 +43,7 @@ def print_json(obj):
 
 def user_dir():
     if "HOME" in os.environ:
-        return os.path.join(os.environ["HOME"], ".electrum-ltc")
+        return os.path.join(os.environ["HOME"], ".electrum-cesc")
     elif "APPDATA" in os.environ:
         return os.path.join(os.environ["APPDATA"], "Electrum-CESC")
     elif "LOCALAPPDATA" in os.environ:
