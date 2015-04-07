@@ -42,14 +42,14 @@ class Exchanger(threading.Thread):
         self.query_rates = threading.Event()
         self.use_exchange = self.parent.config.get('use_exchange', "Bleutrade")
         self.parent.exchanges = EXCHANGES
-        self.parent.currencies = ["EUR","GBP","USD","BTC"]
+        self.parent.currencies = ["USD","BTC"]
         self.parent.win.emit(SIGNAL("refresh_exchanges_combo()"))
         self.parent.win.emit(SIGNAL("refresh_currencies_combo()"))
         self.is_running = False
 
     def get_json(self, site, get_string):
         try:
-            print "get_json method: site=%s ,get_string= %s" % (site,get_string)
+#            print "get_json method: site=%s ,get_string= %s" % (site,get_string)
             connection = httplib.HTTPSConnection(site)
             connection.request("GET", get_string)
         except Exception:
@@ -61,7 +61,7 @@ class Exchanger(threading.Thread):
             json_resp = json.loads(resp.read())
         except Exception:
             raise
-        print json_resp
+#        print json_resp
         return json_resp
 
 
@@ -253,7 +253,7 @@ class Exchanger(threading.Thread):
         self.parent.set_currencies(quote_currencies)
 
     def update_bleu(self):
-        quote_currencies = {"BTC": 0.0, "USD": 0.0}
+        quote_currencies = {"BTC": 0.0, "USD": 0.0, "LTC": 0.0, "DOGE": 0.0, "HTML5": 0.0}
         for cur in quote_currencies:
             try:
                 quote_currencies[cur] = self.get_json('bleutrade.com',"/api/v2/public/getmarketsummary?market=CESC_" + cur)["result"][0]["Average"]
@@ -269,7 +269,7 @@ class Exchanger(threading.Thread):
         for cur in quote_currencies:
             try:
                 quote_currencies[cur] = self.get_json('c-cex.com',"/t/cesc-" + cur.lower() + ".json")["ticker"]["lastprice"]
-                print quote_currencies[cur]
+#                print quote_currencies[cur]
             except Exception:
                 print "Erro ao pegar precos"
                 pass
