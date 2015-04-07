@@ -15,17 +15,20 @@ from electrum_cesc_gui.qt.util import *
 from electrum_cesc_gui.qt.amountedit import AmountEdit
 
 
-EXCHANGES = ["Bit2C",
-             "BitcoinVenezuela",
-             "Bitfinex",
-             "BTC-e",
-             "BTCChina",
-             "Crypto-Trade",
-             "ExMoney",
-             "GoCoin",
-             "Kraken",
-             "OKCoin",
-             "Vault of Satoshi"]
+EXCHANGES = [#"Bit2C",
+             #"BitcoinVenezuela",
+             #"Bitfinex",
+	     "Bleutrade",
+             #"BTC-e",
+             #"BTCChina",
+             "C-Cex"
+             #"Crypto-Trade",
+             #"ExMoney",
+             #"GoCoin",
+             #"Kraken",
+             #"OKCoin",
+             #"Vault of Satoshi"
+            ]
 
 
 class Exchanger(threading.Thread):
@@ -37,15 +40,16 @@ class Exchanger(threading.Thread):
         self.quote_currencies = None
         self.lock = threading.Lock()
         self.query_rates = threading.Event()
-        self.use_exchange = self.parent.config.get('use_exchange', "BTC-e")
+        self.use_exchange = self.parent.config.get('use_exchange', "Bleutrade")
         self.parent.exchanges = EXCHANGES
-        self.parent.currencies = ["EUR","GBP","USD"]
+        self.parent.currencies = ["EUR","GBP","USD","BTC"]
         self.parent.win.emit(SIGNAL("refresh_exchanges_combo()"))
         self.parent.win.emit(SIGNAL("refresh_currencies_combo()"))
         self.is_running = False
 
     def get_json(self, site, get_string):
         try:
+            print "get_json method: site=%s ,get_string= %s" % (site,get_string)
             connection = httplib.HTTPSConnection(site)
             connection.request("GET", get_string)
         except Exception:
@@ -57,6 +61,7 @@ class Exchanger(threading.Thread):
             json_resp = json.loads(resp.read())
         except Exception:
             raise
+        print json_resp
         return json_resp
 
 
@@ -73,13 +78,15 @@ class Exchanger(threading.Thread):
         self.is_running = False
 
     def update_rate(self):
-        self.use_exchange = self.parent.config.get('use_exchange', "BTC-e")
+        self.use_exchange = self.parent.config.get('use_exchange', "Bleutrade")
         update_rates = {
+            "Bleutrade": self.update_bleu,
             "Bit2C": self.update_b2c,
             "BitcoinVenezuela": self.update_bv,
             "Bitfinex": self.update_bf,
             "BTC-e": self.update_be,
             "BTCChina": self.update_CNY,
+            "C-Cex": self.update_ccex,
             "Crypto-Trade": self.update_ct,
             "ExMoney": self.update_em,
             "GoCoin": self.update_gc,
@@ -245,6 +252,30 @@ class Exchanger(threading.Thread):
             self.quote_currencies = quote_currencies
         self.parent.set_currencies(quote_currencies)
 
+    def update_bleu(self):
+        quote_currencies = {"BTC": 0.0, "USD": 0.0}
+        for cur in quote_currencies:
+            try:
+                quote_currencies[cur] = self.get_json('bleutrade.com',"/api/v2/public/getmarketsummary?market=CESC_" + cur)["result"][0]["Average"]
+            except Exception:
+                print "Erro ao pegar precos"
+                pass
+        with self.lock:
+            self.quote_currencies = quote_currencies
+        self.parent.set_currencies(quote_currencies)
+
+    def update_ccex(self):
+        quote_currencies = {"BTC": 0.0, "USD": 0.0}
+        for cur in quote_currencies:
+            try:
+                quote_currencies[cur] = self.get_json('c-cex.com',"/t/cesc-" + cur.lower() + ".json")["ticker"]["lastprice"]
+                print quote_currencies[cur]
+            except Exception:
+                print "Erro ao pegar precos"
+                pass
+        with self.lock:
+            self.quote_currencies = quote_currencies
+        self.parent.set_currencies(quote_currencies)
 
     def get_currencies(self):
         return [] if self.quote_currencies == None else sorted(self.quote_currencies.keys())
@@ -256,13 +287,13 @@ class Plugin(BasePlugin):
         return "Exchange rates"
 
     def description(self):
-        return """exchange rates, retrieved from BTC-e and other market exchanges"""
+        return """exchange rates, retrieved from Bleutrade, C-Cex  and other market exchanges"""
 
 
     def __init__(self,a,b):
         BasePlugin.__init__(self,a,b)
-        self.currencies = [self.config.get('currency', "EUR")]
-        self.exchanges = [self.config.get('use_exchange', "BTC-e")]
+        self.currencies = [self.config.get('currency', "USD")]
+        self.exchanges = [self.config.get('use_exchange', "Bleutrade")]
 
     def init(self):
         self.win = self.gui.main_window
@@ -300,7 +331,7 @@ class Plugin(BasePlugin):
             fiat_currency = quote[-3:]
             btc_price = self.btc_rate
             fiat_balance = Decimal(btc_price) * (Decimal(btc_balance)/100000000)
-            balance_text = "(%.2f %s)" % (fiat_balance,fiat_currency)
+            balance_text = "(%.8f %s)" % (fiat_balance,fiat_currency)
             text = "  " + balance_text + "     " + price_text + " "
         r2[0] = text
 
@@ -313,7 +344,7 @@ class Plugin(BasePlugin):
         else:
             quote_balance = btc_balance * Decimal(cur_rate)
             self.btc_rate = cur_rate
-            quote_text = "%.2f %s" % (quote_balance, quote_currency)
+            quote_text = "%.8f %s" % (quote_balance, quote_currency)
         return quote_text
 
     def load_wallet(self, wallet):
@@ -563,7 +594,7 @@ class Plugin(BasePlugin):
                 return
             combo_ex.addItems(self.exchanges)
             try:
-                index = self.exchanges.index(self.config.get('use_exchange', "BTC-e"))
+                index = self.exchanges.index(self.config.get('use_exchange', "Bleutrade"))
             except Exception:
                 index = 0
             combo_ex.setCurrentIndex(index)
