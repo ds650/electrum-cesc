@@ -328,7 +328,7 @@ class Plugin(BasePlugin):
         quote = r.get(0)
         if quote:
             price_text = "1 CESC~%s"%quote
-            fiat_currency = quote[-3:]
+            fiat_currency = quote
             btc_price = self.btc_rate
             fiat_balance = Decimal(btc_price) * (Decimal(btc_balance)/100000000)
             balance_text = "(%.8f %s)" % (fiat_balance,fiat_currency)
