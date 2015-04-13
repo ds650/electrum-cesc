@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # You probably need to update only this link
-ELECTRUM_GIT_URL=git://github.com/spesmilo/electrum.git
+ELECTRUM_GIT_URL=git://github.com/Marcdnd/electrum-cesc.git
 BRANCH=master
 NAME_ROOT=electrum
 
 # These settings probably don't need any change
-export WINEPREFIX=/opt/wine-electrum
+export WINEPREFIX=./opt/wine-electrum
 PYHOME=c:/python26
 PYTHON="wine $PYHOME/python.exe -OO -B"
 

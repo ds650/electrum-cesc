@@ -326,7 +326,7 @@ class ElectrumWindow(QMainWindow):
 
         help_menu = menubar.addMenu(_("&Help"))
         help_menu.addAction(_("&About"), self.show_about)
-        help_menu.addAction(_("&Official website"), lambda: webbrowser.open("http://electrum-ltc.org"))
+        help_menu.addAction(_("&Official website"), lambda: webbrowser.open("http://cryptoescudotalk.com/index.php/topic,864.0.html"))
         help_menu.addSeparator()
         help_menu.addAction(_("&Documentation"), lambda: webbrowser.open("http://electrum-ltc.org/documentation.html")).setShortcut(QKeySequence.HelpContents)
         help_menu.addAction(_("&Report Bug"), self.show_report_bug)
@@ -339,7 +339,7 @@ class ElectrumWindow(QMainWindow):
 
     def show_report_bug(self):
         QMessageBox.information(self, "Electrum-CESC - " + _("Reporting Bugs"),
-            _("Please report any bugs as issues on github:")+" <a href=\"https://github.com/pooler/electrum-ltc/issues\">https://github.com/pooler/electrum-ltc/issues</a>")
+            _("Please report any bugs as issues on github:")+" <a href=\"https://github.com/Marcdnd/electrum-cesc/issues\">https://github.com/Marcdnd/electrum-cesc/issues</a>")
 
 
     def notify_transactions(self):

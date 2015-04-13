@@ -8,7 +8,7 @@
 
   ;Name and file
   Name "Electrum-CESC"
-  OutFile "dist/electrum-ltc-setup.exe"
+  OutFile "dist/electrum-cesc-setup.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\Electrum-CESC"
@@ -59,7 +59,7 @@ Section
   SetOutPath "$INSTDIR"
 
   ;ADD YOUR OWN FILES HERE...
-  file /r dist\electrum-ltc\*.*
+  file /r dist\electrum-cesc\*.*
 
   ;Store installation folder
   WriteRegStr HKCU "Software\Electrum-CESC" "" $INSTDIR
@@ -68,12 +68,12 @@ Section
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
 
-  CreateShortCut "$DESKTOP\Electrum-CESC.lnk" "$INSTDIR\electrum-ltc.exe" ""
+  CreateShortCut "$DESKTOP\Electrum-CESC.lnk" "$INSTDIR\electrum-cesc.exe" ""
 
   ;create start-menu items
   CreateDirectory "$SMPROGRAMS\Electrum-CESC"
   CreateShortCut "$SMPROGRAMS\Electrum-CESC\Uninstall.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\Uninstall.exe" 0
-  CreateShortCut "$SMPROGRAMS\Electrum-CESC\Electrum-CESC.lnk" "$INSTDIR\electrum-ltc.exe" "" "$INSTDIR\electrum-ltc.exe" 0
+  CreateShortCut "$SMPROGRAMS\Electrum-CESC\Electrum-CESC.lnk" "$INSTDIR\electrum-cesc.exe" "" "$INSTDIR\electrum-cesc.exe" 0
 
 SectionEnd
 

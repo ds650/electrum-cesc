@@ -5,7 +5,7 @@ ELECTRUM_URL=http://electrum.bitcoin.cz/download/Electrum-1.6.1.tar.gz
 NAME_ROOT=electrum-1.6.1
 
 # These settings probably don't need any change
-export WINEPREFIX=/opt/wine-electrum
+export WINEPREFIX=./opt/wine-electrum
 PYHOME=c:/python26
 PYTHON="wine $PYHOME/python.exe -OO -B"
 
