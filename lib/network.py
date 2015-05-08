@@ -7,9 +7,10 @@ from blockchain import Blockchain
 DEFAULT_PORTS = {'t':'50001', 's':'50002', 'h':'8081', 'g':'8082'}
 
 DEFAULT_SERVERS = {
+    'electrum1.cryptoescudo.org': DEFAULT_PORTS,
+    'electrum2.cryptoescudo.org': DEFAULT_PORTS,
+    'electrum3.cryptoescudo.org': DEFAULT_PORTS,
     '128.199.255.227': DEFAULT_PORTS,
-    '192.168.2.26': DEFAULT_PORTS,
-    '192.168.2.33': DEFAULT_PORTS,
 }
 
 
