@@ -253,7 +253,7 @@ class Exchanger(threading.Thread):
         self.parent.set_currencies(quote_currencies)
 
     def update_bleu(self):
-        quote_currencies = {"BTC": 0.0, "USD": 0.0, "LTC": 0.0, "DOGE": 0.0, "HTML5": 0.0}
+        quote_currencies = {"BTC": 0.0, "USD": 0.0, "LTC": 0.0, "DOGE": 0.0}
         for cur in quote_currencies:
             try:
                 quote_currencies[cur] = self.get_json('bleutrade.com',"/api/v2/public/getmarketsummary?market=CESC_" + cur)["result"][0]["Average"]
