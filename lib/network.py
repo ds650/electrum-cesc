@@ -10,7 +10,7 @@ DEFAULT_SERVERS = {
     'electrum1.cryptoescudo.org': DEFAULT_PORTS,
     'electrum2.cryptoescudo.org': DEFAULT_PORTS,
     'electrum3.cryptoescudo.org': DEFAULT_PORTS,
-    '128.199.255.227': DEFAULT_PORTS,
+    'electrum1.cryptoescudo.com.br': DEFAULT_PORTS,
 }
 
 
