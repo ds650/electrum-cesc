@@ -3,26 +3,29 @@
 # Electrum - lightweight Bitcoin client
 # Copyright (C) 2012 thomasv@gitorious
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
-import sys, time, datetime, re, threading
-from electrum_cesc.i18n import _, set_language
-from electrum_cesc.util import print_error, print_msg, parse_url
-from electrum_cesc.plugins import run_hook
-import os.path, json, ast, traceback
-import shutil
-
+import sys
+import os
+import signal
 
 try:
     import PyQt4
@@ -33,18 +36,25 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 import PyQt4.QtCore as QtCore
 
-from electrum_cesc import WalletStorage, Wallet
-from electrum_cesc.i18n import _
-from electrum_cesc.bitcoin import MIN_RELAY_TX_FEE
+from electrum_cesc.i18n import _, set_language
+from electrum_cesc.plugins import run_hook
+from electrum_cesc import SimpleConfig, Wallet, WalletStorage
+from electrum_cesc.paymentrequest import InvoiceStore
+from electrum_cesc.contacts import Contacts
+from electrum_cesc.synchronizer import Synchronizer
+from electrum_cesc.verifier import SPV
+from electrum_cesc.util import DebugMem
+from electrum_cesc.wallet import Abstract_Wallet
+from installwizard import InstallWizard
+
 
 try:
     import icons_rc
 except Exception:
     sys.exit("Error: Could not import icons_rc.py, please generate it with: 'pyrcc4 icons.qrc -o gui/qt/icons_rc.py'")
 
-from util import *
+from util import *   # * needed for plugins
 from main_window import ElectrumWindow
-from electrum_cesc.plugins import init_plugins
 
 
 class OpenFileEventFilter(QObject):
@@ -55,199 +65,137 @@ class OpenFileEventFilter(QObject):
     def eventFilter(self, obj, event):
         if event.type() == QtCore.QEvent.FileOpen:
             if len(self.windows) >= 1:
-                self.windows[0].set_url(event.url().toEncoded())
+                self.windows[0].pay_to_URI(event.url().toEncoded())
                 return True
         return False
 
 
+
 class ElectrumGui:
 
-    def __init__(self, config, network, app=None):
-        self.network = network
+    def __init__(self, config, daemon, plugins):
+        set_language(config.get('language'))
+        # Uncomment this call to verify objects are being properly
+        # GC-ed when windows are closed
+        #network.add_jobs([DebugMem([Abstract_Wallet, SPV, Synchronizer,
+        #                            ElectrumWindow], interval=5)])
         self.config = config
+        self.daemon = daemon
+        self.plugins = plugins
         self.windows = []
         self.efilter = OpenFileEventFilter(self.windows)
-        if app is None:
-            self.app = QApplication(sys.argv)
+        self.app = QApplication(sys.argv)
         self.app.installEventFilter(self.efilter)
-        init_plugins(self)
-        self.payment_request = None
-
+        self.timer = Timer()
+        # shared objects
+        self.invoices = InvoiceStore(self.config)
+        self.contacts = Contacts(self.config)
+        # init tray
+        self.dark_icon = self.config.get("dark_icon", False)
+        self.tray = QSystemTrayIcon(self.tray_icon(), None)
+        self.tray.setToolTip('Electrum-CESC')
+        self.tray.activated.connect(self.tray_activated)
+        self.build_tray_menu()
+        self.tray.show()
+        self.app.connect(self.app, QtCore.SIGNAL('new_window'), self.start_new_window)
+        run_hook('init_qt', self)
 
     def build_tray_menu(self):
+        # Avoid immediate GC of old menu when window closed via its action
+        self.old_menu = self.tray.contextMenu()
         m = QMenu()
-        m.addAction(_("Show/Hide"), self.show_or_hide)
+        for window in self.windows:
+            submenu = m.addMenu(window.wallet.basename())
+            submenu.addAction(_("Show/Hide"), window.show_or_hide)
+            submenu.addAction(_("Close"), window.close)
         m.addAction(_("Dark/Light"), self.toggle_tray_icon)
         m.addSeparator()
         m.addAction(_("Exit Electrum-CESC"), self.close)
         self.tray.setContextMenu(m)
 
+    def tray_icon(self):
+        if self.dark_icon:
+            return QIcon(':icons/electrum_dark_icon.png')
+        else:
+            return QIcon(':icons/electrum_light_icon.png')
+
     def toggle_tray_icon(self):
         self.dark_icon = not self.dark_icon
         self.config.set_key("dark_icon", self.dark_icon, True)
-        icon = QIcon(":icons/electrum_dark_icon.png") if self.dark_icon else QIcon(':icons/electrum_light_icon.png')
-        self.tray.setIcon(icon)
-
-    def show_or_hide(self):
-        self.tray_activated(QSystemTrayIcon.DoubleClick)
+        self.tray.setIcon(self.tray_icon())
 
     def tray_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
-            if self.current_window.isMinimized() or self.current_window.isHidden():
-                self.current_window.show()
-                self.current_window.raise_()
+            if all([w.is_hidden() for w in self.windows]):
+                for w in self.windows:
+                    w.bring_to_top()
             else:
-                self.current_window.hide()
+                for w in self.windows:
+                    w.hide()
 
     def close(self):
-        self.current_window.close()
+        for window in self.windows:
+            window.close()
 
+    def new_window(self, path, uri=None):
+        # Use a signal as can be called from daemon thread
+        self.app.emit(SIGNAL('new_window'), path, uri)
 
-
-    def go_full(self):
-        self.config.set_key('lite_mode', False, True)
-        self.lite_window.hide()
-        self.main_window.show()
-        self.main_window.raise_()
-        self.current_window = self.main_window
-
-    def go_lite(self):
-        self.config.set_key('lite_mode', True, True)
-        self.main_window.hide()
-        self.lite_window.show()
-        self.lite_window.raise_()
-        self.current_window = self.lite_window
-
-
-    def init_lite(self):
-        import lite_window
-        if not self.check_qt_version():
-            if self.config.get('lite_mode') is True:
-                msg = "Electrum was unable to load the 'Lite GUI' because it needs Qt version >= 4.7.\nChanging your config to use the 'Classic' GUI"
-                QMessageBox.warning(None, "Could not start Lite GUI.", msg)
-                self.config.set_key('lite_mode', False, True)
-                sys.exit(0)
-            self.lite_window = None
-            self.main_window.show()
-            self.main_window.raise_()
-            return
-
-        actuator = lite_window.MiniActuator(self.main_window)
-        actuator.load_theme()
-        self.lite_window = lite_window.MiniWindow(actuator, self.go_full, self.config)
-        driver = lite_window.MiniDriver(self.main_window, self.lite_window)
-
-        if self.config.get('lite_mode') is True:
-            self.go_lite()
-        else:
-            self.go_full()
-
-
-    def check_qt_version(self):
-        qtVersion = qVersion()
-        return int(qtVersion[0]) >= 4 and int(qtVersion[2]) >= 7
-
-
-    def set_url(self, url):
-        from electrum_cesc import util
-        from decimal import Decimal
-
-        try:
-            address, amount, label, message, request_url, url = util.parse_url(url)
-        except Exception:
-            QMessageBox.warning(self.main_window, _('Error'), _('Invalid cryptoescudo URL'), _('OK'))
-            return
-
-        if amount:
-            try:
-                if self.main_window.base_unit() == 'mCESC': 
-                    amount = str( 1000* Decimal(amount))
-                else: 
-                    amount = str(Decimal(amount))
-            except Exception:
-                amount = "0.0"
-                QMessageBox.warning(self.main_window, _('Error'), _('Invalid Amount'), _('OK'))
-
-        if request_url:
-            try:
-                from electrum_cesc import paymentrequest
-            except:
-                print "cannot import paymentrequest"
-                request_url = None
-
-        if not request_url:
-            self.main_window.set_send(address, amount, label, message)
-            self.lite_window.set_payment_fields(address, amount)
-            return
-
-        def payment_request():
-            self.payment_request = paymentrequest.PaymentRequest(request_url)
-            if self.payment_request.verify():
-                self.main_window.emit(SIGNAL('payment_request_ok'))
-            else:
-                self.main_window.emit(SIGNAL('payment_request_error'))
-
-        threading.Thread(target=payment_request).start()
-        self.main_window.prepare_for_payment_request()
-
-
-    def main(self, url):
-
-        storage = WalletStorage(self.config)
-        if storage.file_exists:
-            wallet = Wallet(storage)
-            action = wallet.get_action()
-        else:
-            action = 'new'
-
-        if action is not None:
-            import installwizard
-            wizard = installwizard.InstallWizard(self.config, self.network, storage)
-            wallet = wizard.run(action)
-            if not wallet: 
-                exit()
-        else:
-            wallet.start_threads(self.network)
-
-        # init tray
-        self.dark_icon = self.config.get("dark_icon", False)
-        icon = QIcon(":icons/electrum_dark_icon.png") if self.dark_icon else QIcon(':icons/electrum_light_icon.png')
-        self.tray = QSystemTrayIcon(icon, None)
-        self.tray.setToolTip('Electrum-CESC')
-        self.tray.activated.connect(self.tray_activated)
-        self.build_tray_menu()
-        self.tray.show()
-
-        # main window
-        self.main_window = w = ElectrumWindow(self.config, self.network, self)
-        self.current_window = self.main_window
-
-        #lite window
-        self.init_lite()
-
-        # plugins that need to change the GUI do it here
-        run_hook('init')
-
-        w.load_wallet(wallet)
-
-        s = Timer()
-        s.start()
-
+    def create_window_for_wallet(self, wallet):
+        w = ElectrumWindow(self, wallet)
         self.windows.append(w)
-        if url: 
-            self.set_url(url)
+        self.build_tray_menu()
+        # FIXME: Remove in favour of the load_wallet hook
+        run_hook('on_new_window', w)
+        return w
 
-        w.app = self.app
-        w.connect_slots(s)
-        w.update_wallet()
+    def start_new_window(self, path, uri):
+        '''Raises the window for the wallet if it is open.  Otherwise
+        opens the wallet and creates a new window for it.'''
+        for w in self.windows:
+            if w.wallet.storage.path == path:
+                w.bring_to_top()
+                break
+        else:
+            wallet = self.daemon.load_wallet(path)
+            if not wallet:
+                wizard = InstallWizard(self.config, self.app, self.plugins, self.daemon.network, path)
+                wallet = wizard.run_and_get_wallet()
+                if not wallet:
+                    return
+                if wallet.get_action():
+                    return
+                self.daemon.add_wallet(wallet)
+            w = self.create_window_for_wallet(wallet)
+        if uri:
+            w.pay_to_URI(uri)
+        return w
 
+    def close_window(self, window):
+        self.windows.remove(window)
+        self.build_tray_menu()
+        # save wallet path of last open window
+        if not self.windows:
+            self.config.save_last_wallet(window.wallet)
+        run_hook('on_close_window', window)
+
+    def main(self):
+        self.timer.start()
+        self.config.open_last_wallet()
+        path = self.config.get_wallet_path()
+        if not self.start_new_window(path, self.config.get('url')):
+            return
+
+        signal.signal(signal.SIGINT, lambda *args: self.app.quit())
+
+        # main loop
         self.app.exec_()
 
-        # clipboard persistence
-        # see http://www.mail-archive.com/pyqt@riverbankcomputing.com/msg17328.html
+        # Shut down the timer cleanly
+        self.timer.stop()
+
+        # clipboard persistence. see http://www.mail-archive.com/pyqt@riverbankcomputing.com/msg17328.html
         event = QtCore.QEvent(QtCore.QEvent.Clipboard)
         self.app.sendEvent(self.app.clipboard(), event)
 
-        wallet.stop_threads()
-
-
+        self.tray.hide()

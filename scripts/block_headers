@@ -2,19 +2,27 @@
 
 # A simple script that connects to a server and displays block headers
 
-import time, electrum_cesc as electrum
+import time
+from electrum_cesc import SimpleConfig, Network
+from electrum_cesc.util import print_msg, json_encode
 
-# 1. start the interface and wait for connection
-interface = electrum.Interface('electrum-ltc.bysh.me:50002:s')
-interface.start(wait = True)
-if not interface.is_connected:
-    print "not connected"
-    exit()
+# start network
+c = SimpleConfig()
+network = Network(c)
+network.start()
+
+# wait until connected
+while network.is_connecting():
+    time.sleep(0.1)
+
+if not network.is_connected():
+    print_msg("daemon is not connected")
+    sys.exit(1)
 
 # 2. send the subscription
-callback = lambda _,result: electrum.print_json(result.get('result'))
-interface.send([('blockchain.headers.subscribe',[])], callback)
+callback = lambda response: print_msg(json_encode(response.get('result')))
+network.send([('blockchain.headers.subscribe',[])], callback)
 
 # 3. wait for results
-while interface.is_connected:
+while network.is_connected():
     time.sleep(1)

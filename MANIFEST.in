@@ -1,4 +1,5 @@
-include README LICENCE RELEASE-NOTES AUTHORS
+include LICENCE RELEASE-NOTES AUTHORS
+include README.rst
 include electrum-cesc.conf.sample
 include electrum-cesc.desktop
 include *.py
@@ -6,12 +7,10 @@ include electrum-cesc
 recursive-include lib *.py
 recursive-include gui *.py
 recursive-include plugins *.py
-recursive-include ecdsa *.py
-recursive-include aes *.py
+recursive-include packages *.py
+recursive-include packages cacert.pem
 include app.fil
 include icons.qrc
 recursive-include icons *
 recursive-include scripts *
-recursive-include data *
-recursive-include locale *.mo
-recursive-include docs *
+
