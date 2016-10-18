@@ -10,10 +10,6 @@ Electrum-CESC - Lightweight Cryptoescudo client
   Homepage: https://cryptoescudotalk.org/
 
 
-
-
-
-
 Getting started
 ===============
 
@@ -69,12 +65,6 @@ Install on Linux systems
 
 If you install Electrum on your system, you can run it from any
 directory.
-
-If you have pip, you can do::
-
-    python setup.py sdist
-    sudo pip install --pre dist/Electrum-CESC-2.0.tar.gz
-
 
 If you don't have pip, install with::
 
