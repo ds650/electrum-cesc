@@ -47,17 +47,10 @@ FEE_TARGETS = [25, 10, 5, 2]
 DEFAULT_PORTS = {'t':'50001', 's':'50002', 'h':'8081', 'g':'8082'}
 
 DEFAULT_SERVERS = {
-    'einfachmalnettsein.de': {'t':'40001', 's':'40002'},
-    'electrum.cryptomachine.com': DEFAULT_PORTS,
-    'electrum-cesc.alexcos.ro': {'t':'50003', 's':'50004'},
-    'electrum-cesc.bysh.me': DEFAULT_PORTS,
-    'electrum-cesc.neocrypto.io': {'t':'50003', 's':'50004'},
-    'electrum-cesc.petrkr.net': {'t':'60001', 's':'60002'},
-    'electrum.ltc.xurious.com': DEFAULT_PORTS,
-    'electrum.site2.me': DEFAULT_PORTS,
-    'electrum.snicter.com': DEFAULT_PORTS,
-    'electrum.wikit.me': DEFAULT_PORTS,
-    'ltc-westus.electrum-servers.com': DEFAULT_PORTS,
+    'electrum1.cryptoescudo.com.br': {'t':'40001', 's':'40002'},
+    'electrum1.cryptoescudo.org': DEFAULT_PORTS,
+    'electrum2.cryptoescudo.org': {'t':'50003', 's':'50004'},
+    'electrum3.cryptoescudo.org': DEFAULT_PORTS,
 }
 
 NODES_RETRY_INTERVAL = 60
