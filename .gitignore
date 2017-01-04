@@ -8,3 +8,4 @@ mypy/
 locale/
 electrum-cesc.build/
 electrum-cesc.conf
+*.spec
